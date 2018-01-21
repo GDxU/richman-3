@@ -12,18 +12,18 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type CONSTANTS struct {
-	ACCESS_TOKEN string
-	SECRET_KEY   string
-	BASE_URL     string
+type Constants struct {
+	AccessToken string
+	SecretKey   string
+	BaseURL     string
 }
 
-type PAYLOAD struct {
+type PayLoad struct {
 	Currency string
 	Period   string
 }
 
-type RESBODY struct {
+type ResBody struct {
 	ErrorCode      string
 	Timestamp      string
 	CompleteOrders []struct {
@@ -34,10 +34,10 @@ type RESBODY struct {
 }
 
 func main() {
-	constants := CONSTANTS{
-		ACCESS_TOKEN: "6ef090a1-ad27-4123-afe7-7743e84c2231",
-		SECRET_KEY:   "a21cf668-cd9f-4be3-abc8-c66580ceb813",
-		BASE_URL:     "https://api.coinone.co.kr",
+	constants := Constants{
+		AccessToken: "6ef090a1-ad27-4123-afe7-7743e84c2231",
+		SecretKey:   "a21cf668-cd9f-4be3-abc8-c66580ceb813",
+		BaseURL:     "https://api.coinone.co.kr",
 	}
 	db, err := sql.Open("mysql", dbfunc.DBUSER+":"+dbfunc.DBAUTH+"@tcp("+dbfunc.DBIPADDR+":"+dbfunc.DBPORT+")/btc")
 	err2 := db.Ping()
@@ -53,14 +53,14 @@ func main() {
 	constants.getCoinData("BTC", 10, db)
 }
 
-func (c *CONSTANTS) getCoinData(s string, duration int, db *sql.DB) {
-	url := c.BASE_URL + "/trades"
+func (c *Constants) getCoinData(s string, duration int, db *sql.DB) {
+	url := c.BaseURL + "/trades"
 	for {
 		res, err := http.Get(url)
 		if err != nil {
 			fmt.Print(err)
 		} else {
-			resbody := RESBODY{}
+			resbody := ResBody{}
 			err2 := json.NewDecoder(res.Body).Decode(&resbody)
 			if err2 == nil {
 				price := resbody.refine()
@@ -73,9 +73,9 @@ func (c *CONSTANTS) getCoinData(s string, duration int, db *sql.DB) {
 	}
 }
 
-func (r *RESBODY) refine() *dbfunc.PRICE {
+func (r *ResBody) refine() *dbfunc.Price {
 	total := 0.0
-	price := new(dbfunc.PRICE)
+	price := new(dbfunc.Price)
 	lastOrder := len(r.CompleteOrders)
 	for i := lastOrder - 1; ; i-- {
 		co := r.CompleteOrders[i]
