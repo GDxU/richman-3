@@ -83,13 +83,14 @@ func (r *ResBody) refine() *dbfunc.Price {
 		ts, _ := strconv.ParseUint(co.Timestamp, 10, 64)
 		total = total + qty
 		if i == lastOrder-1 {
-			price.Timestamp, _ = strconv.ParseUint(co.Timestamp, 10, 64)
+			price.Timestamp2, _ = strconv.ParseUint(co.Timestamp, 10, 64)
 			price.LastPrice, _ = strconv.ParseUint(co.Price, 10, 64)
 			price.MaxPrice = price.LastPrice
 			price.MinPrice = price.LastPrice
-			fmt.Println(price.Timestamp)
-		} else if ts < (price.Timestamp - 600) {
+			fmt.Println(price.Timestamp2)
+		} else if ts < (price.Timestamp2 - 600) {
 			price.FirstPrice, _ = strconv.ParseUint(co.Price, 10, 64)
+			price.Timestamp1, _ = strconv.ParseUint(co.Timestamp, 10, 64)
 			fmt.Println(ts)
 			break
 		} else {

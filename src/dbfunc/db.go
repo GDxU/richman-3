@@ -14,7 +14,8 @@ const DBIPADDR string = "localhost"
 const DBPORT string = "3306"
 
 type Price struct {
-	Timestamp  uint64
+	Timestamp1 uint64
+	Timestamp2 uint64
 	Qty        float64
 	AvgPrice   uint64
 	FirstPrice uint64
@@ -27,14 +28,14 @@ type Price struct {
 
 func (p *Price) Insert(db *sql.DB) {
 	//insert
-	stmtIns, err := db.Prepare("Insert into btc10min (timestamp, qty, avgPrice, firstPrice, lastPrice, maxPrice," +
-		" minPrice) VALUES (?, ?, ?, ?, ?, ?, ?)")
+	stmtIns, err := db.Prepare("Insert into btc10min (timestamp1, timestamp2, qty, avgPrice, firstPrice, lastPrice, maxPrice," +
+		" minPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	defer stmtIns.Close()
 
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		if _, err2 := stmtIns.Exec(p.Timestamp, p.Qty, p.AvgPrice, p.FirstPrice, p.LastPrice,
+		if _, err2 := stmtIns.Exec(p.Timestamp1, p.Timestamp2, p.Qty, p.AvgPrice, p.FirstPrice, p.LastPrice,
 			p.MaxPrice, p.MinPrice); err2 != nil {
 			fmt.Println(err2)
 		}
@@ -87,13 +88,13 @@ func (p *Price) Insert(db *sql.DB) {
 
 	//update for stddev/mean
 	stmtUpdate, err := db.Prepare("Update btc10min set bolband = ?, bolbandsd = ? " +
-		"where timestamp = ?")
+		"where timestamp1 = ?")
 	defer stmtUpdate.Close()
 
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		if _, err2 := stmtUpdate.Exec(uint64(avg), uint64(avgStdDev), p.Timestamp); err2 != nil {
+		if _, err2 := stmtUpdate.Exec(uint64(avg), uint64(avgStdDev), p.Timestamp1); err2 != nil {
 			fmt.Println(err2)
 		}
 	}

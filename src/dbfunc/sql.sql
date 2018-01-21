@@ -5,7 +5,8 @@ flush privileges;
 
 create table btc10min(
     id int auto_increment,
-    timestamp int(11),
+    timestamp1 int(11),
+    timestamp2 int(11),
     qty float(11, 8),
     avgPrice int(11),
     firstPrice int(11),
