@@ -1,10 +1,13 @@
 package main
 
 import (
+	"account"
 	"database/sql"
 	"dbfunc"
 	"encoding/json"
 	"fmt"
+	"log"
+	"logger"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,11 +15,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type Constants struct {
-	AccessToken string
-	SecretKey   string
-	BaseURL     string
-}
+const BaseURL string = "https://api.coinone.co.kr"
 
 type PayLoad struct {
 	Currency string
@@ -34,11 +33,9 @@ type ResBody struct {
 }
 
 func main() {
-	constants := Constants{
-		AccessToken: "6ef090a1-ad27-4123-afe7-7743e84c2231",
-		SecretKey:   "a21cf668-cd9f-4be3-abc8-c66580ceb813",
-		BaseURL:     "https://api.coinone.co.kr",
-	}
+	logger.Now = time.Now().Format(time.RFC822)
+	logger := logger.GetLogger("[Let's get Rich]")
+
 	db, err := sql.Open("mysql", dbfunc.DBUSER+":"+dbfunc.DBAUTH+"@tcp("+dbfunc.DBIPADDR+":"+dbfunc.DBPORT+")/btc")
 	err2 := db.Ping()
 	if err != nil {
@@ -47,28 +44,36 @@ func main() {
 		fmt.Println(err2.Error())
 		panic(err2.Error)
 	} else {
-		fmt.Print("DB Connected.")
+		logger.Print("DB Connected.")
 	}
-
-	constants.getCoinData("BTC", 10, db)
+	go func() {
+		for {
+			time.Sleep(time.Duration(2) * time.Second)
+			account.GetBalance()
+		}
+	}()
+	fmt.Scanln()
+	//getCoinData("BTC", 10, db, logger)
 }
 
-func (c *Constants) getCoinData(s string, duration int, db *sql.DB) {
-	url := c.BaseURL + "/trades"
+func getCoinData(s string, duration int, db *sql.DB, logger *log.Logger) {
+	url := BaseURL + "/trades"
 	for {
-		res, err := http.Get(url)
-		if err != nil {
-			fmt.Print(err)
-		} else {
-			resbody := ResBody{}
-			err2 := json.NewDecoder(res.Body).Decode(&resbody)
-			if err2 == nil {
-				price := resbody.refine()
-				price.Insert(db)
+		go func() {
+			res, err := http.Get(url)
+			if err != nil {
+				fmt.Print(err)
 			} else {
-				fmt.Print(err2)
+				resbody := ResBody{}
+				err2 := json.NewDecoder(res.Body).Decode(&resbody)
+				if err2 == nil {
+					price := resbody.refine()
+					price.Insert(db)
+				} else {
+					fmt.Print(err2)
+				}
 			}
-		}
+		}()
 		time.Sleep(time.Duration(duration*60) * time.Second)
 	}
 }
@@ -87,11 +92,9 @@ func (r *ResBody) refine() *dbfunc.Price {
 			price.LastPrice, _ = strconv.ParseUint(co.Price, 10, 64)
 			price.MaxPrice = price.LastPrice
 			price.MinPrice = price.LastPrice
-			fmt.Println(price.Timestamp2)
 		} else if ts < (price.Timestamp2 - 600) {
 			price.FirstPrice, _ = strconv.ParseUint(co.Price, 10, 64)
 			price.Timestamp1, _ = strconv.ParseUint(co.Timestamp, 10, 64)
-			fmt.Println(ts)
 			break
 		} else {
 			curPrice, _ := strconv.ParseUint(co.Price, 10, 64)

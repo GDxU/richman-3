@@ -3,6 +3,7 @@ package dbfunc
 import (
 	"database/sql"
 	"fmt"
+	"logger"
 	"math"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -27,6 +28,7 @@ type Price struct {
 }
 
 func (p *Price) Insert(db *sql.DB) {
+	logger := logger.GetLogger("[Insert Into Database]")
 	//insert
 	stmtIns, err := db.Prepare("Insert into btc10min (timestamp1, timestamp2, qty, avgPrice, firstPrice, lastPrice, maxPrice," +
 		" minPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
@@ -57,7 +59,6 @@ func (p *Price) Insert(db *sql.DB) {
 			if err2 != nil {
 				fmt.Println(err2)
 			} else {
-				fmt.Printf("avg value : %f\n", avg)
 			}
 		}
 	}
@@ -73,7 +74,6 @@ func (p *Price) Insert(db *sql.DB) {
 			if err2 != nil {
 				fmt.Println(err2)
 			} else {
-				fmt.Printf("avg values comming : %f\n", avgPrice)
 				avgPrices = append(avgPrices, avgPrice)
 			}
 			count = count + 1
@@ -98,4 +98,6 @@ func (p *Price) Insert(db *sql.DB) {
 			fmt.Println(err2)
 		}
 	}
+
+	logger.Println("Insertion Succeeded")
 }
