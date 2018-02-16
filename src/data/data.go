@@ -1,6 +1,7 @@
 package data
 
 import (
+	"account"
 	"database/sql"
 	"dbfunc"
 	"encoding/json"
@@ -11,8 +12,7 @@ import (
 	"time"
 )
 
-const BaseURL string = "https://api.coinone.co.kr"
-
+// ResBody is Response Body of GetTradeData
 type ResBody struct {
 	ErrorCode      string
 	Timestamp      string
@@ -23,34 +23,39 @@ type ResBody struct {
 	}
 }
 
-func GetCoinData(s string, duration int, db *sql.DB) {
-	logger := logger.GetLogger("[Get " + s + " Data]")
-	url := BaseURL + "/trades?currency=" + s
-	for {
-		go func() {
-			res, err := http.Get(url)
-			if err != nil {
-				fmt.Print(err)
-			} else {
-				resbody := ResBody{}
-				err2 := json.NewDecoder(res.Body).Decode(&resbody)
-				if err2 == nil {
-					price := resbody.refine()
-					price.Insert(db)
-				} else {
-					fmt.Print(err2)
-				}
+// GetCoinTradeData gets Trade Data of a coin from CoinOne
+// @param: coin name like "BTC"
+// @param: *sql.DB
+func GetCoinTradeData(coin string, db *sql.DB) {
+	logger := logger.GetLogger("[Get " + coin + " Data]" + time.Now().Format(time.RFC3339))
+	url := account.BaseURL + "/trades?currency=" + coin
+
+	res, err := http.Get(url)
+	if err != nil {
+		fmt.Print(err)
+	} else {
+		resbody := ResBody{}
+		err2 := json.NewDecoder(res.Body).Decode(&resbody)
+		if err2 == nil {
+			price := resbody.refine()
+			if price != nil {
+				price.Insert(db, coin)
 			}
-		}()
-		logger.Println("Get Data Succeeded")
-		time.Sleep(time.Duration(duration*60) * time.Second)
+		} else {
+			fmt.Print(err2)
+		}
 	}
+
+	logger.Println("Get Data Succeeded")
 }
 
-func (r *ResBody) refine() *dbfunc.Price {
+func (r *ResBody) refine() *dbfunc.CoinTradePrice {
 	total := 0.0
-	price := new(dbfunc.Price)
+	price := new(dbfunc.CoinTradePrice)
 	lastOrder := len(r.CompleteOrders)
+	if lastOrder <= 0 {
+		return nil
+	}
 	for i := lastOrder - 1; ; i-- {
 		co := r.CompleteOrders[i]
 		qty, _ := strconv.ParseFloat(co.Qty, 64)

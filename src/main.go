@@ -3,10 +3,10 @@ package main
 import (
 	"account"
 	"data"
-	"database/sql"
 	"dbfunc"
 	"fmt"
 	"logger"
+	"strconv"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -18,33 +18,44 @@ func main() {
 	logger := logger.GetLogger("[Let's get Rich]")
 	logger.Println("Let's Get Start!")
 
-	db := getDbConn()
+	myAccounts := new(account.MyBalance)
+	db := dbfunc.GetDbConn("BTC")
 
-	go func() {
-		data.GetCoinData("BTC", 10, db)
-	}()
-
+	// get BTC Trade data every 10 minutes.
 	go func() {
 		for {
-			account.GetBalance()
+			data.GetCoinTradeData("BTC", db)
+			time.Sleep(time.Duration(10) * time.Minute)
+		}
+	}()
+
+	// get my Balance ? why?
+	go func() {
+		for {
+			myAccounts = account.GetBalance()
 			time.Sleep(time.Duration(2) * time.Second)
 		}
 	}()
 
-	fmt.Scanln()
-}
+	time.Sleep(time.Duration(1) * time.Second)
 
-func getDbConn() *sql.DB {
-	logger := logger.GetLogger("[DBConnection]")
-	db, err := sql.Open("mysql", dbfunc.DBUSER+":"+dbfunc.DBAUTH+"@tcp("+dbfunc.DBIPADDR+":"+dbfunc.DBPORT+")/btc")
-	err2 := db.Ping()
-	if err != nil {
-		panic(err.Error)
-	} else if err2 != nil {
-		fmt.Println(err2.Error())
-		panic(err2.Error)
-	} else {
-		logger.Println("DB Connected.")
-	}
-	return db
+	mlo := myAccounts.GetLimitOrders("BTC")
+	fmt.Println(mlo)
+
+	fmt.Println(myAccounts.BuyCoin("BTC", 100000, 1.0))
+
+	mlo = myAccounts.GetLimitOrders("BTC")
+	fmt.Println(mlo)
+
+	limitOrder := mlo.LimitOrders[0]
+	p, _ := strconv.Atoi(limitOrder.Price)
+	q, _ := strconv.ParseFloat(limitOrder.Qty, 64)
+
+	s := myAccounts.CancelOrder(limitOrder.OrderId, uint64(p), q, limitOrder.Type)
+	fmt.Println(s)
+
+	mlo = myAccounts.GetLimitOrders("BTC")
+	fmt.Println(mlo)
+
+	fmt.Scanln()
 }

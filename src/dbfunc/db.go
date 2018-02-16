@@ -5,16 +5,23 @@ import (
 	"fmt"
 	"logger"
 	"math"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-const DBUSER string = "rich"
-const DBAUTH string = "rich"
-const DBIPADDR string = "localhost"
-const DBPORT string = "3306"
+// Constants for DB Connection
+const (
+	DBUSER   string = "rich"
+	DBAUTH   string = "rich"
+	DBIPADDR string = "localhost"
+	DBPORT   string = "3306"
+)
 
-type Price struct {
+// CoinTradePrice is the Dataform for DB Insertion
+// TABLE NAME FORM: btc10min
+type CoinTradePrice struct {
+	ID         uint64
 	Timestamp1 uint64
 	Timestamp2 uint64
 	Qty        float64
@@ -27,10 +34,13 @@ type Price struct {
 	Bolbandsd  uint32
 }
 
-func (p *Price) Insert(db *sql.DB) {
+// Insert inserts CoinTradeData into Database
+// It does BOLLENGER BAND calculation also.
+func (p *CoinTradePrice) Insert(db *sql.DB, coin string) {
 	logger := logger.GetLogger("[Insert Into Database]")
+	coin = strings.ToLower(coin)
 	//insert
-	stmtIns, err := db.Prepare("Insert into btc10min (timestamp1, timestamp2, qty, avgPrice, firstPrice, lastPrice, maxPrice," +
+	stmtIns, err := db.Prepare("Insert into " + coin + "10min (timestamp1, timestamp2, qty, avgPrice, firstPrice, lastPrice, maxPrice," +
 		" minPrice) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	defer stmtIns.Close()
 
@@ -100,4 +110,54 @@ func (p *Price) Insert(db *sql.DB) {
 	}
 
 	logger.Println("Insertion Succeeded")
+}
+
+// Select fetches 20 Rows of Coin Data
+// @param: coin
+func Select(db *sql.DB, coin string) []CoinTradePrice {
+	logger := logger.GetLogger("[Select From Database]")
+	coin = strings.ToLower(coin)
+	//select
+	rows, err := db.Query("Select id, timestamp1, timestamp2, avgPrice, bolband, bolbandsd, firstPrice, lastPrice," +
+		" maxPrice, minPrice, qty from " + coin + "10min where id >= (select max(id) from " + coin + "10min) - 19")
+	if err != nil {
+		panic(err.Error)
+	}
+	defer rows.Close()
+
+	arrCtp := []CoinTradePrice{}
+	var i int
+
+	for rows.Next() {
+		var ctp CoinTradePrice
+		logger.Println(rows)
+		err2 := rows.Scan(&ctp.ID, &ctp.Timestamp1, &ctp.Timestamp2, &ctp.AvgPrice, &ctp.Bolband, &ctp.Bolbandsd,
+			&ctp.FirstPrice, &ctp.LastPrice, &ctp.MaxPrice, &ctp.MinPrice, &ctp.Qty)
+		if err2 != nil {
+			logger.Println(err2)
+			panic(err2.Error)
+		}
+		arrCtp = append(arrCtp, ctp)
+		i++
+	}
+
+	return arrCtp
+}
+
+// GetDbConn returns a connectable DB Connection
+// Parameters for connection are constants of the package
+func GetDbConn(coin string) *sql.DB {
+	logger := logger.GetLogger("[DBConnection]")
+	coin = strings.ToLower(coin)
+	db, err := sql.Open("mysql", DBUSER+":"+DBAUTH+"@tcp("+DBIPADDR+":"+DBPORT+")/"+coin)
+	err2 := db.Ping()
+	if err != nil {
+		panic(err.Error)
+	} else if err2 != nil {
+		fmt.Println(err2.Error())
+		panic(err2.Error)
+	} else {
+		logger.Println("DB Connected.")
+	}
+	return db
 }
