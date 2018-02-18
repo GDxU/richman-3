@@ -211,7 +211,7 @@ func (b *MyBalance) SellCoin(coin string, price uint64, qty float64) string {
 
 // CancelOrder cancels an order, if fails, empty string or errorCode will return.
 // Else, canceled orderId returns.
-func (b *MyBalance) CancelOrder(id string, price uint64, qty float64, tradeType string) string {
+func (b *MyBalance) CancelOrder(id string, price uint64, totalPrice float64, tradeType string) string {
 	logger := logger.GetLogger("[Cancel Order]")
 	url := BaseURL + "/v2/order/cancel/"
 
@@ -221,6 +221,8 @@ func (b *MyBalance) CancelOrder(id string, price uint64, qty float64, tradeType 
 	} else {
 		isAsk = 0
 	}
+
+	qty := totalPrice / float64(price)
 
 	p := Parameter{
 		Access_token: AccessToken,

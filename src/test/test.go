@@ -1,11 +1,16 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func main() {
 	a := "whojes"
 	if a == "whojes" {
-		fmt.Println("whojes")
+		fmt.Println(time.Now().Unix())
+		time.Sleep(time.Duration(1) * time.Second)
+		fmt.Println(time.Now().Unix())
 	} else {
 		fmt.Println("fuck")
 	}
