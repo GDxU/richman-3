@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"dbfunc"
 	"encoding/json"
-	"fmt"
 	"logger"
 	"net/http"
 	"strconv"
@@ -23,6 +22,36 @@ type ResBody struct {
 	}
 }
 
+// OrderBook is current OrderBook
+type OrderBook struct {
+	ErrorCode string
+	Timestamp string
+	Currency  string
+	Ask       []struct {
+		Price string
+		Qty   string
+	}
+	Bid []struct {
+		Price string
+		Qty   string
+	}
+}
+
+// RecentOrder is Recent Order Book
+type RecentOrderBook struct {
+	ErrorCode string
+	Timestamp string
+	Currency  string
+	Ask       struct {
+		Price string
+		Qty   string
+	}
+	Bid struct {
+		Price string
+		Qty   string
+	}
+}
+
 // GetCoinTradeData gets Trade Data of a coin from CoinOne
 // @param: coin name like "BTC"
 // @param: *sql.DB
@@ -32,7 +61,7 @@ func GetCoinTradeData(coin string, db *sql.DB) {
 
 	res, err := http.Get(url)
 	if err != nil {
-		fmt.Print(err)
+		logger.Println(err)
 	} else {
 		resbody := ResBody{}
 		err2 := json.NewDecoder(res.Body).Decode(&resbody)
@@ -42,11 +71,38 @@ func GetCoinTradeData(coin string, db *sql.DB) {
 				price.Insert(db, coin)
 			}
 		} else {
-			fmt.Print(err2)
+			logger.Println(err2)
 		}
 	}
 
 	logger.Println("Get Data Succeeded")
+}
+
+// GetRecentOrder returns current OrderBook
+// @return: an OrderBook, or nil if err
+func GetRecentOrder(coin string) *RecentOrderBook {
+	logger := logger.GetLogger("[Get " + coin + " OrderBook]")
+	url := account.BaseURL + "/orderbook/?currency=" + coin
+
+	res, err := http.Get(url)
+	orderBook := new(OrderBook)
+	if err != nil {
+		logger.Println(err)
+		return nil
+	}
+	err2 := json.NewDecoder(res.Body).Decode(orderBook)
+	if err2 != nil {
+		logger.Println(err2)
+		return nil
+	}
+	recentOrder := new(RecentOrderBook)
+	recentOrder.Ask = orderBook.Ask[0]
+	recentOrder.Bid = orderBook.Bid[0]
+	recentOrder.Currency = orderBook.Currency
+	recentOrder.Timestamp = orderBook.Timestamp
+	recentOrder.ErrorCode = orderBook.ErrorCode
+
+	return recentOrder
 }
 
 func (r *ResBody) refine() *dbfunc.CoinTradePrice {

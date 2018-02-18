@@ -114,12 +114,12 @@ func (p *CoinTradePrice) Insert(db *sql.DB, coin string) {
 
 // Select fetches 20 Rows of Coin Data
 // @param: coin
-func Select(db *sql.DB, coin string) []CoinTradePrice {
+func Select(db *sql.DB, coin string, count int) []CoinTradePrice {
 	logger := logger.GetLogger("[Select From Database]")
 	coin = strings.ToLower(coin)
 	//select
 	rows, err := db.Query("Select id, timestamp1, timestamp2, avgPrice, bolband, bolbandsd, firstPrice, lastPrice," +
-		" maxPrice, minPrice, qty from " + coin + "10min where id >= (select max(id) from " + coin + "10min) - 19")
+		" maxPrice, minPrice, qty from " + coin + "10min where id >= (select max(id) from " + coin + "10min) - " + string(count-1))
 	if err != nil {
 		panic(err.Error)
 	}
