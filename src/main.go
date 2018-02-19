@@ -15,12 +15,19 @@ import (
 )
 
 func main() {
+
 	args := os.Args[1:]
 	coin := strings.ToUpper(args[0])
 
 	logger.Now = time.Now().Format(time.RFC822)
 	mainLogger := logger.GetLogger("[Let's get Rich]")
 	mainLogger.Println("Let's Get Start!")
+
+	defer func() {
+		if r := recover(); r != nil {
+			mainLogger.Println(r)
+		}
+	}()
 
 	var myAccounts *account.MyBalance
 	var myLimitOrders *account.MyLimitOrders
