@@ -76,7 +76,10 @@ func main() {
 	go func() {
 		currentTime := time.Now().Unix()
 		for _, limitOrder := range myLimitOrders.LimitOrders {
-			timestamp, _ := strconv.ParseInt(limitOrder.Timestamp, 10, 64)
+			timestamp, err := strconv.ParseInt(limitOrder.Timestamp, 10, 64)
+			if err != nil {
+				logger.Println(err)
+			}
 			if timestamp < currentTime-3600 {
 				logger.Println("Cancelling a Order" + limitOrder.OrderId)
 				price, _ := strconv.ParseUint(limitOrder.Price, 10, 64)
@@ -86,5 +89,7 @@ func main() {
 		}
 	}()
 
-	fmt.Scanln()
+	for {
+		fmt.Scanln()
+	}
 }
