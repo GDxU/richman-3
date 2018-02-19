@@ -2,6 +2,7 @@ package main
 
 import (
 	"account"
+	"bufio"
 	"data"
 	"dbfunc"
 	"fmt"
@@ -16,14 +17,26 @@ import (
 
 func main() {
 
+	// Arguments
 	args := os.Args[1:]
-	coin := strings.ToUpper(args[0])
+	reader := bufio.NewReader(os.Stdin)
+	var coin string
+	if len(args) == 0 {
+		fmt.Print("Enter a Coin Name: ")
+		text, _ := reader.ReadString('\n')
+		coin = strings.Trim(text, "\n")
+	} else {
+		coin = strings.ToUpper(args[0])
+	}
 
+	//Logger Setting
 	logger.Now = time.Now().Format(time.RFC822)
 	logger.Coin = coin
 	mainLogger := logger.GetLogger("[Let's get Rich]")
 	mainLogger.Println("Let's Get Start!")
 
+	// TODO
+	// How It works?
 	defer func() {
 		if r := recover(); r != nil {
 			mainLogger.Println("ERROR", r)
