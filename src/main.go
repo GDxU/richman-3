@@ -15,8 +15,8 @@ import (
 func main() {
 
 	logger.Now = time.Now().Format(time.RFC822)
-	logger := logger.GetLogger("[Let's get Rich]")
-	logger.Println("Let's Get Start!")
+	mainLogger := logger.GetLogger("[Let's get Rich]")
+	mainLogger.Println("Let's Get Start!")
 
 	myAccounts := account.GetBalance()
 	myLimitOrders := myAccounts.GetLimitOrders("BTC")
@@ -29,8 +29,8 @@ func main() {
 		time.Sleep(time.Duration(10) * time.Second)
 	}()
 
-	data.GetOneDayTradeData("BTC", db)
 	// get BTC Trade data every 10 minutes.
+	data.GetOneDayTradeData("BTC", db)
 	go func() {
 		for {
 			time.Sleep(time.Duration(10) * time.Minute)
@@ -40,13 +40,15 @@ func main() {
 
 	//Logic A
 	go func() {
+		logger := logger.GetLogger("[Logic A]")
 		for {
 			ctp := dbfunc.Select(db, "BTC", 5)
-			tangent := float64((ctp[0].Bolband-ctp[1].Bolband)/ctp[0].Bolband) + 0.005
+			tangent := float64(int(ctp[4].Bolband)-int(ctp[3].Bolband))/float64(ctp[4].Bolband) + 0.005
 			ro := data.GetRecentOrder("BTC")
 			currentValue, _ := strconv.ParseUint(ro.Ask.Price, 10, 64)
 			if currentValue < (ctp[0].Bolband-5*uint64(ctp[0].Bolbandsd)/2) && tangent > 0 {
-				logger.Println("Current Value goes lower than BolBand Low Line!")
+				logger.Println("Current Value goes lower than BolBand Low Line! : " + strconv.Itoa(int(currentValue)) +
+					" krw now, " + strconv.Itoa(int((ctp[0].Bolband - 5*uint64(ctp[0].Bolbandsd)/2))) + " krw LowerLine of BolBand")
 				weight := (tangent * 100) * 0.5
 				available, _ := strconv.ParseFloat(myAccounts.Krw.Available, 64)
 				qty := available * weight / float64(currentValue)
@@ -67,7 +69,8 @@ func main() {
 					myAccounts.SellCoin("BTC", currentValue, qty)
 				}
 			} else {
-				logger.Println("Current Value is in Bollinger Band")
+				logger.Println("Current Value is in Bollinger Band : " + strconv.Itoa(int(currentValue)) +
+					" krw now, " + strconv.Itoa(int((ctp[0].Bolband - 5*uint64(ctp[0].Bolbandsd)/2))) + " krw LowerLine of BolBand")
 			}
 			time.Sleep(time.Duration(5) * time.Second)
 		}
@@ -75,10 +78,11 @@ func main() {
 
 	// remove unresolved Buy/Sell request every 10 min
 	go func() {
+		logger := logger.GetLogger("[Remove Unresolved Buy/Sell Request]")
 		for {
 			time.Sleep(time.Duration(10) * time.Second)
 			logger.Println("Let's Delete unresolved Buy/Sell request.")
-			if len(myLimitOrders.LimitOrders) == 0 {
+			if len((*myLimitOrders).LimitOrders) == 0 {
 				logger.Println("No Order Exists")
 			}
 			for _, limitOrder := range myLimitOrders.LimitOrders {
@@ -101,6 +105,7 @@ func main() {
 
 	// Logging Complete Trade
 	go func() {
+		logger := logger.GetLogger("[Complete Trade]")
 		coin := "BTC"
 		mco := account.GetCompleteOrder(coin)
 		noco := len(mco.CompleteOrders)

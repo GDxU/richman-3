@@ -38,7 +38,7 @@ type CoinTradePrice struct {
 // Insert inserts CoinTradeData into Database
 // It does BOLLENGER BAND calculation also.
 func (p *CoinTradePrice) Insert(db *sql.DB, coin string) {
-	logger := logger.GetLogger("[Insert Into Database]")
+
 	coin = strings.ToLower(coin)
 	//insert
 	stmtIns, err := db.Prepare("Insert into " + coin + "10min (timestamp1, timestamp2, qty, avgPrice, firstPrice, lastPrice, maxPrice," +
@@ -110,7 +110,7 @@ func (p *CoinTradePrice) Insert(db *sql.DB, coin string) {
 		}
 	}
 
-	logger.Println("Insertion Succeeded")
+	return
 }
 
 // Select fetches 20 Rows of Coin Data

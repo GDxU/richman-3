@@ -94,6 +94,7 @@ func GetCoinTradeData(coin string, db *sql.DB) {
 			prices := resbody.refine(false)
 			if prices != nil {
 				prices[0].Insert(db, coin)
+				logger.Println("Insert Succeeded.")
 			}
 		} else {
 			logger.Println(err2)
