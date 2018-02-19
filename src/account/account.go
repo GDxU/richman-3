@@ -142,15 +142,25 @@ func GetBalance() *MyBalance {
 	if resp, err := client.Do(req); err == nil {
 		err2 := json.NewDecoder(resp.Body).Decode(b)
 		if err2 == nil {
-			logger.Println("Get Balance Succeeded.")
+			if b.Result == "success" {
+				logger.Println("Get Balance Succeeded.")
+				return b
+			} else if b.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				return GetBalance()
+			} else {
+				logger.Println("[Get Balance Failed " + b.Result + "]")
+				return nil
+			}
 		} else {
 			logger.Println(resp.Body)
 			logger.Println(err2)
+			return nil
 		}
 	} else {
 		logger.Println(err)
+		return nil
 	}
-	return b
 }
 
 // BuyCoin sends a request for limit buy
@@ -179,6 +189,9 @@ func (b *MyBalance) BuyCoin(coin string, price uint64, qty float64) string {
 			if lbs.Result == "success" {
 				logger.Println("Request for a Limit Buy Succeeded.")
 				return lbs.OrderId
+			} else if lbs.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				return b.BuyCoin(coin, price, qty)
 			}
 			logger.Println(lbs.ErrorCode)
 			return lbs.ErrorCode
@@ -216,6 +229,9 @@ func (b *MyBalance) SellCoin(coin string, price uint64, qty float64) string {
 			if lbs.Result == "success" {
 				logger.Println("Request for a Limit Sell Succeeded.")
 				return lbs.OrderId
+			} else if lbs.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				return b.SellCoin(coin, price, qty)
 			}
 			return lbs.ErrorCode
 		}
@@ -229,7 +245,7 @@ func (b *MyBalance) SellCoin(coin string, price uint64, qty float64) string {
 
 // CancelOrder cancels an order, if fails, empty string or errorCode will return.
 // Else, canceled orderId returns.
-func (b *MyBalance) CancelOrder(id string, price uint64, totalPrice float64, tradeType string) string {
+func (b *MyBalance) CancelOrder(id string, price uint64, qty float64, tradeType string) string {
 	logger := logger.GetLogger("[Cancel Order]")
 	url := BaseURL + "/v2/order/cancel/"
 
@@ -240,7 +256,6 @@ func (b *MyBalance) CancelOrder(id string, price uint64, totalPrice float64, tra
 		isAsk = 0
 	}
 
-	qty := totalPrice / float64(price)
 	qty = toFixed(qty, 4)
 
 	p := Parameter{
@@ -264,6 +279,9 @@ func (b *MyBalance) CancelOrder(id string, price uint64, totalPrice float64, tra
 				logger.Println("Qty : " + strconv.FormatFloat(qty, 'g', 1, 64))
 				logger.Println("Price : " + strconv.FormatUint(price, 10))
 				return id
+			} else if c.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				return b.CancelOrder(id, price, qty, tradeType)
 			}
 			return c.ErrorCode
 		}
@@ -298,6 +316,9 @@ func (b *MyBalance) GetOrderInfo(coin, orderID string) *OrderInfoRes {
 			if oir.Result == "success" {
 				logger.Println("Get Order Info Succeeded : " + orderID)
 				return oir
+			} else if oir.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				return b.GetOrderInfo(coin, orderID)
 			}
 			logger.Println(oir)
 			return nil
@@ -331,6 +352,9 @@ func (b *MyBalance) GetLimitOrders(coin string) *MyLimitOrders {
 			if l.Result == "success" {
 				logger.Println("Get LimitOrders Succeeded.")
 				return l
+			} else if l.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				return b.GetLimitOrders(coin)
 			}
 			logger.Println(l.ErrorMessage)
 			return nil
@@ -363,6 +387,9 @@ func GetCompleteOrder(coin string) *MyCompleteOrders {
 			if mco.Result == "success" {
 				logger.Println("Get Complete Order Succeeded.")
 				return mco
+			} else if mco.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				return GetCompleteOrder(coin)
 			}
 			logger.Println(mco.ErrorCode)
 			return nil

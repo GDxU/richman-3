@@ -26,7 +26,7 @@ func main() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			mainLogger.Println(r)
+			mainLogger.Println("ERROR", r)
 		}
 	}()
 
@@ -36,9 +36,15 @@ func main() {
 
 	// get Account Info every 10 seconds
 	go func() {
-		myAccounts = account.GetBalance()
-		myLimitOrders = myAccounts.GetLimitOrders(coin)
-		time.Sleep(time.Duration(10) * time.Second)
+		for {
+			myAccounts = account.GetBalance()
+			myLimitOrders = myAccounts.GetLimitOrders(coin)
+			if myAccounts == nil || myLimitOrders == nil {
+				time.Sleep(time.Duration(1) * time.Second)
+				continue
+			}
+			time.Sleep(time.Duration(10) * time.Second)
+		}
 	}()
 
 	// get BTC Trade data every 10 minutes.

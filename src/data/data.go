@@ -13,6 +13,7 @@ import (
 
 // ResBody is Response Body of GetTradeData
 type ResBody struct {
+	Result         string
 	ErrorCode      string
 	Timestamp      string
 	CompleteOrders []struct {
@@ -24,6 +25,7 @@ type ResBody struct {
 
 // OrderBook is current OrderBook
 type OrderBook struct {
+	Result    string
 	ErrorCode string
 	Timestamp string
 	Currency  string
@@ -66,12 +68,17 @@ func GetOneDayTradeData(coin string, db *sql.DB) {
 		resbody := ResBody{}
 		err2 := json.NewDecoder(res.Body).Decode(&resbody)
 		if err2 == nil {
-			prices := resbody.refine(true)
-			if prices != nil {
-				for i := len(prices) - 1; i >= 0; i-- {
-					prices[i].Insert(db, coin)
+			if resbody.Result == "success" {
+				prices := resbody.refine(true)
+				if prices != nil {
+					for i := len(prices) - 1; i >= 0; i-- {
+						prices[i].Insert(db, coin)
+					}
+					logger.Println("Get One Day Coin Data")
 				}
-				logger.Println("Get One Day Coin Data")
+			} else if resbody.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				GetOneDayTradeData(coin, db)
 			}
 		}
 	}
@@ -91,10 +98,15 @@ func GetCoinTradeData(coin string, db *sql.DB) {
 		resbody := ResBody{}
 		err2 := json.NewDecoder(res.Body).Decode(&resbody)
 		if err2 == nil {
-			prices := resbody.refine(false)
-			if prices != nil {
-				prices[0].Insert(db, coin)
-				logger.Println("Insert Succeeded.")
+			if resbody.Result == "success" {
+				prices := resbody.refine(false)
+				if prices != nil {
+					prices[0].Insert(db, coin)
+					logger.Println("Insert Succeeded.")
+				}
+			} else if resbody.ErrorCode == "131" {
+				time.Sleep(time.Duration(1) * time.Second)
+				GetCoinTradeData(coin, db)
 			}
 		} else {
 			logger.Println(err2)
@@ -121,14 +133,23 @@ func GetRecentOrder(coin string) *RecentOrderBook {
 		logger.Println(err2)
 		return nil
 	}
-	recentOrder := new(RecentOrderBook)
-	recentOrder.Ask = orderBook.Ask[0]
-	recentOrder.Bid = orderBook.Bid[0]
-	recentOrder.Currency = orderBook.Currency
-	recentOrder.Timestamp = orderBook.Timestamp
-	recentOrder.ErrorCode = orderBook.ErrorCode
 
-	return recentOrder
+	if orderBook.Result == "success" {
+		recentOrder := new(RecentOrderBook)
+		recentOrder.Ask = orderBook.Ask[0]
+		recentOrder.Bid = orderBook.Bid[0]
+		recentOrder.Currency = orderBook.Currency
+		recentOrder.Timestamp = orderBook.Timestamp
+		recentOrder.ErrorCode = orderBook.ErrorCode
+
+		return recentOrder
+	} else if orderBook.ErrorCode == "133" {
+		time.Sleep(time.Duration(1) * time.Second)
+		return GetRecentOrder(coin)
+	} else {
+		logger.Println(orderBook.ErrorCode)
+		return nil
+	}
 }
 
 func (r *ResBody) refine(isAll bool) []dbfunc.CoinTradePrice {
