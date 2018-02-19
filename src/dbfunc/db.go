@@ -60,7 +60,7 @@ func (p *CoinTradePrice) Insert(db *sql.DB, coin string) {
 	var avgStdDev float64
 
 	//select avg of avgPrice for bolban update
-	row, err := db.Query("select avg(avgPrice) as avg from btc10min where id >= (select max(id) from btc10min) - 20")
+	row, err := db.Query("select avg(avgPrice) as avg from " + coin + "10min where id >= (select max(id) from " + coin + "10min) - 20")
 	defer row.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -74,7 +74,7 @@ func (p *CoinTradePrice) Insert(db *sql.DB, coin string) {
 		}
 	}
 	//select avgPrices for bolban update
-	rows, err := db.Query("select avgPrice from btc10min where id >= (select max(id) from btc10min) - 20")
+	rows, err := db.Query("select avgPrice from " + coin + "10min where id >= (select max(id) from " + coin + "10min) - 20")
 	defer rows.Close()
 	count := 0
 	if err != nil {
@@ -98,7 +98,7 @@ func (p *CoinTradePrice) Insert(db *sql.DB, coin string) {
 	}
 
 	//update for stddev/mean
-	stmtUpdate, err := db.Prepare("Update btc10min set bolband = ?, bolbandsd = ? " +
+	stmtUpdate, err := db.Prepare("Update " + coin + "10min set bolband = ?, bolbandsd = ? " +
 		"where timestamp1 = ?")
 	defer stmtUpdate.Close()
 
