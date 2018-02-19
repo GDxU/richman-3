@@ -20,6 +20,7 @@ func main() {
 	coin := strings.ToUpper(args[0])
 
 	logger.Now = time.Now().Format(time.RFC822)
+	logger.Coin = coin
 	mainLogger := logger.GetLogger("[Let's get Rich]")
 	mainLogger.Println("Let's Get Start!")
 
