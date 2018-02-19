@@ -49,11 +49,18 @@ func main() {
 			if currentValue < (ctp[0].Bolband-5*uint64(ctp[0].Bolbandsd)/2) && tangent > 0 {
 				logger.Println("Current Value goes lower than BolBand Low Line! : " + strconv.Itoa(int(currentValue)) +
 					" krw now, " + strconv.Itoa(int((ctp[0].Bolband - 5*uint64(ctp[0].Bolbandsd)/2))) + " krw LowerLine of BolBand")
-				weight := (tangent * 100) * 0.5
-				available, _ := strconv.ParseFloat(myAccounts.Krw.Available, 64)
+				weight := tangent * 100
+				available, err := strconv.ParseFloat(myAccounts.Krw.Available, 64)
+				if err != nil {
+					logger.Println(err)
+					continue
+				}
 				qty := available * weight / float64(currentValue)
 				buyID := myAccounts.BuyCoin("BTC", currentValue, qty)
-
+				if len(buyID) < 10 {
+					logger.Println(buyID)
+					continue
+				}
 				time.Sleep(time.Duration(15) * time.Minute)
 				var i int
 				for _, limitOrder := range myLimitOrders.LimitOrders {

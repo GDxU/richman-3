@@ -177,6 +177,7 @@ func (b *MyBalance) BuyCoin(coin string, price uint64, qty float64) string {
 				logger.Println("Request for a Limit Buy Succeeded.")
 				return lbs.OrderId
 			}
+			logger.Println(lbs.ErrorCode)
 			return lbs.ErrorCode
 		}
 		logger.Println(err2)
