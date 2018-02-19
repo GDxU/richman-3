@@ -18,8 +18,8 @@ func main() {
 	logger := logger.GetLogger("[Let's get Rich]")
 	logger.Println("Let's Get Start!")
 
-	var myAccounts *account.MyBalance
-	var myLimitOrders *account.MyLimitOrders
+	myAccounts := account.GetBalance()
+	myLimitOrders := myAccounts.GetLimitOrders("BTC")
 	db := dbfunc.GetDbConn("BTC")
 
 	// get Account Info every 10 seconds
@@ -72,19 +72,27 @@ func main() {
 		}
 	}()
 
-	time.Sleep(time.Duration(10) * time.Second)
 	go func() {
-		currentTime := time.Now().Unix()
-		for _, limitOrder := range myLimitOrders.LimitOrders {
-			timestamp, err := strconv.ParseInt(limitOrder.Timestamp, 10, 64)
-			if err != nil {
-				logger.Println(err)
+		for {
+			time.Sleep(time.Duration(10) * time.Second)
+			logger.Println("Let's Delete unresolved Buy/Sell request.")
+			if len(myLimitOrders.LimitOrders) == 0 {
+				logger.Println("No Order Exists")
 			}
-			if timestamp < currentTime-3600 {
-				logger.Println("Cancelling a Order" + limitOrder.OrderId)
-				price, _ := strconv.ParseUint(limitOrder.Price, 10, 64)
-				qty, _ := strconv.ParseFloat(limitOrder.Qty, 64)
-				myAccounts.CancelOrder(limitOrder.OrderId, price, qty, limitOrder.Type)
+			for _, limitOrder := range myLimitOrders.LimitOrders {
+				currentTime := time.Now().Unix()
+				timestamp, err := strconv.ParseInt(limitOrder.Timestamp, 10, 64)
+				if err != nil {
+					logger.Println(err)
+				}
+				if timestamp < currentTime-3600 {
+					logger.Println("Cancelling a Order" + limitOrder.OrderId)
+					price, _ := strconv.ParseUint(limitOrder.Price, 10, 64)
+					qty, _ := strconv.ParseFloat(limitOrder.Qty, 64)
+					myAccounts.CancelOrder(limitOrder.OrderId, price, qty, limitOrder.Type)
+				} else {
+					logger.Println(limitOrder.OrderId + " will be deleted in " + strconv.Itoa(int(currentTime-timestamp)+3600))
+				}
 			}
 		}
 	}()
