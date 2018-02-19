@@ -82,6 +82,18 @@ type MyLimitOrders struct {
 	}
 }
 
+type MyCompleteOrders struct {
+	Result         string
+	ErrorCode      string
+	CompleteOrders []struct {
+		Timestamp string
+		Price     string
+		Qty       string
+		Type      string
+		OrderID   string
+	}
+}
+
 // CancelRes is the response of Cancelling the Order
 type CancelRes struct {
 	Result    string
@@ -313,6 +325,39 @@ func (b *MyBalance) GetLimitOrders(coin string) *MyLimitOrders {
 				logger.Println("Get LimitOrders Succeeded.")
 				return l
 			}
+			logger.Println(l.ErrorMessage)
+			return nil
+		}
+		logger.Println(err2)
+		return nil
+	} else {
+		logger.Println(err)
+		return nil
+	}
+}
+
+//
+func GetCompleteOrder(coin string) *MyCompleteOrders {
+	logger := logger.GetLogger("[Get Complete Orders]")
+	url := BaseURL + "/v2/order/complete_orders/"
+	p := Parameter{
+		Access_token: AccessToken,
+		Currency:     coin,
+		Nonce:        uint(time.Now().Unix()),
+	}
+
+	req := p.setRequest(url, logger)
+	client := &http.Client{}
+
+	mco := new(MyCompleteOrders)
+	if resp, err := client.Do(req); err == nil {
+		err2 := json.NewDecoder(resp.Body).Decode(mco)
+		if err2 == nil {
+			if mco.Result == "success" {
+				logger.Println("Get Complete Order Succeeded.")
+				return mco
+			}
+			logger.Println(mco.ErrorCode)
 			return nil
 		}
 		logger.Println(err2)

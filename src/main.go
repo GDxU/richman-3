@@ -38,6 +38,7 @@ func main() {
 		}
 	}()
 
+	//Logic A
 	go func() {
 		for {
 			ctp := dbfunc.Select(db, "BTC", 5)
@@ -72,6 +73,7 @@ func main() {
 		}
 	}()
 
+	// remove unresolved Buy/Sell request every 10 min
 	go func() {
 		for {
 			time.Sleep(time.Duration(10) * time.Second)
@@ -94,6 +96,28 @@ func main() {
 					logger.Println(limitOrder.OrderId + " will be deleted in " + strconv.Itoa(int(currentTime-timestamp)+3600))
 				}
 			}
+		}
+	}()
+
+	// Logging Complete Trade
+	go func() {
+		coin := "BTC"
+		mco := account.GetCompleteOrder(coin)
+		noco := len(mco.CompleteOrders)
+		for {
+			time.Sleep(time.Duration(10) * time.Second)
+			mco = account.GetCompleteOrder(coin)
+			if len(mco.CompleteOrders) > noco {
+				for i := 0; i < len(mco.CompleteOrders)-noco; i++ {
+					if mco.CompleteOrders[i].Type == "ask" {
+						logger.Println("Sell " + coin + " Succeeded.")
+					} else {
+						logger.Println("Buy " + coin + " Succeeded.")
+					}
+					logger.Println(mco.CompleteOrders[i].Price + " KRW, " + mco.CompleteOrders[i].Qty + "BTC")
+				}
+			}
+			noco = len(mco.CompleteOrders)
 		}
 	}()
 
