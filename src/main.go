@@ -15,26 +15,27 @@ import (
 func main() {
 
 	logger.Now = time.Now().Format(time.RFC822)
+	coin := "BTC"
 	mainLogger := logger.GetLogger("[Let's get Rich]")
 	mainLogger.Println("Let's Get Start!")
 
-	myAccounts := account.GetBalance()
-	myLimitOrders := myAccounts.GetLimitOrders("BTC")
-	db := dbfunc.GetDbConn("BTC")
+	var myAccounts *account.MyBalance
+	var myLimitOrders *account.MyLimitOrders
+	db := dbfunc.GetDbConn(coin)
 
 	// get Account Info every 10 seconds
 	go func() {
 		myAccounts = account.GetBalance()
-		myLimitOrders = myAccounts.GetLimitOrders("BTC")
+		myLimitOrders = myAccounts.GetLimitOrders(coin)
 		time.Sleep(time.Duration(10) * time.Second)
 	}()
 
 	// get BTC Trade data every 10 minutes.
-	data.GetOneDayTradeData("BTC", db)
+	data.GetOneDayTradeData(coin, db)
 	go func() {
 		for {
 			time.Sleep(time.Duration(10) * time.Minute)
-			data.GetCoinTradeData("BTC", db)
+			data.GetCoinTradeData(coin, db)
 		}
 	}()
 
@@ -42,23 +43,26 @@ func main() {
 	go func() {
 		logger := logger.GetLogger("[Logic A]")
 		for {
-			ctp := dbfunc.Select(db, "BTC", 5)
+			time.Sleep(time.Duration(5) * time.Second)
+
+			ctp := dbfunc.Select(db, coin, 5)
 			tangent := float64(int(ctp[4].Bolband)-int(ctp[3].Bolband))/float64(ctp[4].Bolband) + 0.005
-			ro := data.GetRecentOrder("BTC")
+			ro := data.GetRecentOrder(coin)
 			currentValue, _ := strconv.ParseUint(ro.Ask.Price, 10, 64)
+
 			if currentValue < (ctp[0].Bolband-5*uint64(ctp[0].Bolbandsd)/2) && tangent > 0 {
 				logger.Println("Current Value goes lower than BolBand Low Line! : " + strconv.Itoa(int(currentValue)) +
 					" krw now, " + strconv.Itoa(int((ctp[0].Bolband - 5*uint64(ctp[0].Bolbandsd)/2))) + " krw LowerLine of BolBand")
 				weight := tangent * 100
-				available, err := strconv.ParseFloat(myAccounts.Krw.Available, 64)
+				available, err := strconv.ParseFloat(myAccounts.Krw.Avail, 64)
 				if err != nil {
 					logger.Println(err)
 					continue
 				}
 				qty := available * weight / float64(currentValue)
-				buyID := myAccounts.BuyCoin("BTC", currentValue, qty)
-				if len(buyID) < 10 {
-					logger.Println(buyID)
+				buyID := myAccounts.BuyCoin(coin, currentValue, qty)
+				if len(buyID) <= 5 {
+					logger.Println("ErrorCode : " + buyID)
 					continue
 				}
 				time.Sleep(time.Duration(15) * time.Minute)
@@ -71,15 +75,14 @@ func main() {
 					}
 				}
 				if i == len(myLimitOrders.LimitOrders) {
-					ro = data.GetRecentOrder("BTC")
+					ro = data.GetRecentOrder(coin)
 					currentValue, _ := strconv.ParseUint(ro.Bid.Price, 10, 64)
-					myAccounts.SellCoin("BTC", currentValue, qty)
+					myAccounts.SellCoin(coin, currentValue, qty)
 				}
 			} else {
 				logger.Println("Current Value is in Bollinger Band : " + strconv.Itoa(int(currentValue)) +
 					" krw now, " + strconv.Itoa(int((ctp[0].Bolband - 5*uint64(ctp[0].Bolbandsd)/2))) + " krw LowerLine of BolBand")
 			}
-			time.Sleep(time.Duration(5) * time.Second)
 		}
 	}()
 
@@ -113,7 +116,6 @@ func main() {
 	// Logging Complete Trade
 	go func() {
 		logger := logger.GetLogger("[Complete Trade]")
-		coin := "BTC"
 		mco := account.GetCompleteOrder(coin)
 		noco := len(mco.CompleteOrders)
 		for {
@@ -126,7 +128,7 @@ func main() {
 					} else {
 						logger.Println("Buy " + coin + " Succeeded.")
 					}
-					logger.Println(mco.CompleteOrders[i].Price + " KRW, " + mco.CompleteOrders[i].Qty + "BTC")
+					logger.Println(mco.CompleteOrders[i].Price + " KRW, " + mco.CompleteOrders[i].Qty + coin)
 				}
 			}
 			noco = len(mco.CompleteOrders)

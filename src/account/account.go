@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"log"
 	"logger"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,32 +39,32 @@ type MyBalance struct {
 	ErrorCode    string
 	ErrorMessage string
 	Btc          struct {
-		Available string
-		Balance   string
+		Avail   string
+		Balance string
 	}
 	Ltc struct {
-		Available string
-		Balance   string
+		Avail   string
+		Balance string
 	}
 	Eth struct {
-		Available string
-		Balance   string
+		Avail   string
+		Balance string
 	}
 	Xrp struct {
-		Available string
-		Balance   string
+		Avail   string
+		Balance string
 	}
 	Qtum struct {
-		Available string
-		Balance   string
+		Avail   string
+		Balance string
 	}
 	Iota struct {
-		Available string
-		Balance   string
+		Avail   string
+		Balance string
 	}
 	Krw struct {
-		Available string
-		Balance   string
+		Avail   string
+		Balance string
 	}
 }
 
@@ -158,6 +159,8 @@ func (b *MyBalance) BuyCoin(coin string, price uint64, qty float64) string {
 	logger := logger.GetLogger("[Buy " + coin + "Coins]")
 	url := BaseURL + "/v2/order/limit_buy/"
 
+	qty = toFixed(qty, 4)
+
 	p := Parameter{
 		Access_token: AccessToken,
 		Price:        price,
@@ -193,6 +196,8 @@ func (b *MyBalance) BuyCoin(coin string, price uint64, qty float64) string {
 func (b *MyBalance) SellCoin(coin string, price uint64, qty float64) string {
 	logger := logger.GetLogger("[Sell " + coin + " Coins]")
 	url := BaseURL + "/v2/order/limit_sell/"
+
+	qty = toFixed(qty, 4)
 
 	p := Parameter{
 		Access_token: AccessToken,
@@ -236,6 +241,7 @@ func (b *MyBalance) CancelOrder(id string, price uint64, totalPrice float64, tra
 	}
 
 	qty := totalPrice / float64(price)
+	qty = toFixed(qty, 4)
 
 	p := Parameter{
 		Access_token: AccessToken,
@@ -270,14 +276,14 @@ func (b *MyBalance) CancelOrder(id string, price uint64, totalPrice float64, tra
 }
 
 // GetOrderInfo returns an Order Info with given OrderId
-func (b *MyBalance) GetOrderInfo(coin, orderId string) *OrderInfoRes {
+func (b *MyBalance) GetOrderInfo(coin, orderID string) *OrderInfoRes {
 	logger := logger.GetLogger("[Get Order Info]")
 	url := BaseURL + "/v2/order/order_info/"
 
 	p := Parameter{
 		Access_token: AccessToken,
 		Currency:     coin,
-		Order_id:     orderId,
+		Order_id:     orderID,
 		Nonce:        uint(time.Now().Unix()),
 	}
 
@@ -290,7 +296,7 @@ func (b *MyBalance) GetOrderInfo(coin, orderId string) *OrderInfoRes {
 		err2 := json.NewDecoder(resp.Body).Decode(oir)
 		if err2 == nil {
 			if oir.Result == "success" {
-				logger.Println("Get Order Info Succeeded : " + orderId)
+				logger.Println("Get Order Info Succeeded : " + orderID)
 				return oir
 			}
 			logger.Println(oir)
@@ -395,4 +401,13 @@ func (p *Parameter) setRequest(url string, logger *log.Logger) *http.Request {
 	req.Header.Add("X-COINONE-SIGNATURE", signature)
 
 	return req
+}
+
+func round(num float64) int {
+	return int(num + math.Copysign(0.5, num))
+}
+
+func toFixed(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+	return float64(round(num*output)) / output
 }
