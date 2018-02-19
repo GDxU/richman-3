@@ -28,15 +28,15 @@ func main() {
 		myLimitOrders = myAccounts.GetLimitOrders("BTC")
 		time.Sleep(time.Duration(10) * time.Second)
 	}()
+
+	data.GetOneDayTradeData("BTC", db)
 	// get BTC Trade data every 10 minutes.
 	go func() {
 		for {
-			data.GetCoinTradeData("BTC", db)
 			time.Sleep(time.Duration(10) * time.Minute)
+			data.GetCoinTradeData("BTC", db)
 		}
 	}()
-
-	time.Sleep(time.Duration(200) * time.Minute)
 
 	go func() {
 		for {
@@ -45,6 +45,7 @@ func main() {
 			ro := data.GetRecentOrder("BTC")
 			currentValue, _ := strconv.ParseUint(ro.Ask.Price, 10, 64)
 			if currentValue < (ctp[0].Bolband-5*uint64(ctp[0].Bolbandsd)/2) && tangent > 0 {
+				logger.Println("Current Value goes lower than BolBand Low Line!")
 				weight := (tangent * 100) * 0.5
 				available, _ := strconv.ParseFloat(myAccounts.Krw.Available, 64)
 				qty := available * weight / float64(currentValue)
@@ -64,7 +65,8 @@ func main() {
 					currentValue, _ := strconv.ParseUint(ro.Bid.Price, 10, 64)
 					myAccounts.SellCoin("BTC", currentValue, qty)
 				}
-
+			} else {
+				logger.Println("Current Value is in Bollinger Band")
 			}
 			time.Sleep(time.Duration(5) * time.Second)
 		}
@@ -76,6 +78,7 @@ func main() {
 		for _, limitOrder := range myLimitOrders.LimitOrders {
 			timestamp, _ := strconv.ParseInt(limitOrder.Timestamp, 10, 64)
 			if timestamp < currentTime-3600 {
+				logger.Println("Cancelling a Order" + limitOrder.OrderId)
 				price, _ := strconv.ParseUint(limitOrder.Price, 10, 64)
 				qty, _ := strconv.ParseFloat(limitOrder.Qty, 64)
 				myAccounts.CancelOrder(limitOrder.OrderId, price, qty, limitOrder.Type)

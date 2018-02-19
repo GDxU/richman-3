@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"logger"
 	"math"
+	"strconv"
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -119,18 +120,17 @@ func Select(db *sql.DB, coin string, count int) []CoinTradePrice {
 	coin = strings.ToLower(coin)
 	//select
 	rows, err := db.Query("Select id, timestamp1, timestamp2, avgPrice, bolband, bolbandsd, firstPrice, lastPrice," +
-		" maxPrice, minPrice, qty from " + coin + "10min where id >= (select max(id) from " + coin + "10min) - " + string(count-1))
+		" maxPrice, minPrice, qty from " + coin + "10min where id >= (select max(id) from " + coin + "10min) - " + strconv.Itoa(count-1))
 	if err != nil {
+		logger.Println(err)
 		panic(err.Error)
 	}
 	defer rows.Close()
 
 	arrCtp := []CoinTradePrice{}
-	var i int
 
 	for rows.Next() {
 		var ctp CoinTradePrice
-		logger.Println(rows)
 		err2 := rows.Scan(&ctp.ID, &ctp.Timestamp1, &ctp.Timestamp2, &ctp.AvgPrice, &ctp.Bolband, &ctp.Bolbandsd,
 			&ctp.FirstPrice, &ctp.LastPrice, &ctp.MaxPrice, &ctp.MinPrice, &ctp.Qty)
 		if err2 != nil {
@@ -138,7 +138,6 @@ func Select(db *sql.DB, coin string, count int) []CoinTradePrice {
 			panic(err2.Error)
 		}
 		arrCtp = append(arrCtp, ctp)
-		i++
 	}
 
 	return arrCtp
