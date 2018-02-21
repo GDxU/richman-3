@@ -2,6 +2,7 @@ package data
 
 import (
 	"account"
+	"bytes"
 	"database/sql"
 	"dbfunc"
 	"encoding/json"
@@ -57,63 +58,76 @@ type RecentOrderBook struct {
 // GetOneDayTradeData gets last one day's trade data.
 // @param: coin name like "BTC"
 // @param: *sql.DB
-func GetOneDayTradeData(coin string, db *sql.DB) {
+func GetOneDayTradeData(coin string, db *sql.DB) string {
 	logger := logger.GetLogger("[Get One Day " + coin + " Trade Data]")
 	url := account.BaseURL + "/trades?currency=" + coin + "&period=" + "day"
 
 	res, err := http.Get(url)
 	if err != nil {
-		logger.Println(err)
-	} else {
-		resbody := ResBody{}
-		err2 := json.NewDecoder(res.Body).Decode(&resbody)
-		if err2 == nil {
-			if resbody.Result == "success" {
-				prices := resbody.refine(true)
-				if prices != nil {
-					for i := len(prices) - 1; i >= 0; i-- {
-						prices[i].Insert(db, coin)
-					}
-					logger.Println("Get One Day Coin Data")
+		logger.Warning.Println(err)
+		return ""
+	}
+
+	resbody := ResBody{}
+	err2 := json.NewDecoder(res.Body).Decode(&resbody)
+	if err2 == nil {
+		if resbody.Result == "success" {
+			prices := resbody.refine(true)
+			if prices != nil {
+				for i := len(prices) - 1; i >= 0; i-- {
+					prices[i].Insert(db, coin)
 				}
-			} else if resbody.ErrorCode == "131" {
-				time.Sleep(time.Duration(1) * time.Second)
-				GetOneDayTradeData(coin, db)
+				logger.Info.Println("Get One Day Coin Data Succeeded.")
 			}
+			return "success"
+		} else if resbody.ErrorCode == "131" {
+			time.Sleep(time.Duration(1) * time.Second)
+			return GetOneDayTradeData(coin, db)
+		} else {
+			logger.Warning.Println(resbody)
+			return ""
 		}
 	}
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(res.Body)
+	logger.Severe.Println(err2, buf.String())
+	return ""
 }
 
 // GetCoinTradeData gets Trade Data of a coin from CoinOne
 // @param: coin name like "BTC"
 // @param: *sql.DB
-func GetCoinTradeData(coin string, db *sql.DB) {
+func GetCoinTradeData(coin string, db *sql.DB) string {
 	logger := logger.GetLogger("[Get " + coin + " Trade Data]" + time.Now().Format(time.RFC3339))
 	url := account.BaseURL + "/trades?currency=" + coin
 
 	res, err := http.Get(url)
 	if err != nil {
-		logger.Println(err)
-	} else {
-		resbody := ResBody{}
-		err2 := json.NewDecoder(res.Body).Decode(&resbody)
-		if err2 == nil {
-			if resbody.Result == "success" {
-				prices := resbody.refine(false)
-				if prices != nil {
-					prices[0].Insert(db, coin)
-					logger.Println("Insert Succeeded.")
-				}
-			} else if resbody.ErrorCode == "131" {
-				time.Sleep(time.Duration(1) * time.Second)
-				GetCoinTradeData(coin, db)
+		logger.Warning.Println(err)
+		return ""
+	}
+	resbody := ResBody{}
+	err2 := json.NewDecoder(res.Body).Decode(&resbody)
+	if err2 == nil {
+		if resbody.Result == "success" {
+			prices := resbody.refine(false)
+			if prices != nil {
+				prices[0].Insert(db, coin)
+				logger.Info.Println("Insert Succeeded.")
 			}
+			return "success"
+		} else if resbody.ErrorCode == "131" {
+			time.Sleep(time.Duration(1) * time.Second)
+			return GetCoinTradeData(coin, db)
 		} else {
-			logger.Println(err2)
+			logger.Warning.Println(resbody)
+			return ""
 		}
 	}
-
-	logger.Println("Get Data Succeeded")
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(res.Body)
+	logger.Severe.Println(err2, buf.String())
+	return ""
 }
 
 // GetRecentOrder returns current OrderBook
@@ -125,12 +139,12 @@ func GetRecentOrder(coin string) *RecentOrderBook {
 	res, err := http.Get(url)
 	orderBook := new(OrderBook)
 	if err != nil {
-		logger.Println(err)
+		logger.Warning.Println(err)
 		return nil
 	}
 	err2 := json.NewDecoder(res.Body).Decode(orderBook)
 	if err2 != nil {
-		logger.Println(err2)
+		logger.Warning.Println(err2)
 		return nil
 	}
 
@@ -142,12 +156,13 @@ func GetRecentOrder(coin string) *RecentOrderBook {
 		recentOrder.Timestamp = orderBook.Timestamp
 		recentOrder.ErrorCode = orderBook.ErrorCode
 
+		logger.Info.Println("Get OrderBook Succeeded.")
 		return recentOrder
 	} else if orderBook.ErrorCode == "133" {
 		time.Sleep(time.Duration(1) * time.Second)
 		return GetRecentOrder(coin)
 	} else {
-		logger.Println(orderBook.ErrorCode)
+		logger.Warning.Println(orderBook.ErrorCode)
 		return nil
 	}
 }

@@ -122,8 +122,8 @@ func Select(db *sql.DB, coin string, count int) []CoinTradePrice {
 	rows, err := db.Query("Select id, timestamp1, timestamp2, avgPrice, bolband, bolbandsd, firstPrice, lastPrice," +
 		" maxPrice, minPrice, qty from " + coin + "10min where id >= (select max(id) from " + coin + "10min) - " + strconv.Itoa(count-1))
 	if err != nil {
-		logger.Println(err)
-		panic(err.Error)
+		logger.Severe.Println(err)
+		return nil
 	}
 	defer rows.Close()
 
@@ -134,8 +134,8 @@ func Select(db *sql.DB, coin string, count int) []CoinTradePrice {
 		err2 := rows.Scan(&ctp.ID, &ctp.Timestamp1, &ctp.Timestamp2, &ctp.AvgPrice, &ctp.Bolband, &ctp.Bolbandsd,
 			&ctp.FirstPrice, &ctp.LastPrice, &ctp.MaxPrice, &ctp.MinPrice, &ctp.Qty)
 		if err2 != nil {
-			logger.Println(err2)
-			panic(err2.Error)
+			logger.Severe.Println(err2)
+			return nil
 		}
 		arrCtp = append(arrCtp, ctp)
 	}
@@ -151,12 +151,12 @@ func GetDbConn(coin string) *sql.DB {
 	db, err := sql.Open("mysql", DBUSER+":"+DBAUTH+"@tcp("+DBIPADDR+":"+DBPORT+")/"+coin)
 	err2 := db.Ping()
 	if err != nil {
-		panic(err.Error)
+		logger.Severe.Println(err)
+		return nil
 	} else if err2 != nil {
-		fmt.Println(err2.Error())
-		panic(err2.Error)
-	} else {
-		logger.Println("DB Connected.")
+		logger.Severe.Println(err2)
+		return nil
 	}
+	logger.Info.Println("DB Connected.")
 	return db
 }

@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"log"
 	"logger"
 	"math"
 	"net/http"
@@ -143,22 +142,23 @@ func GetBalance() *MyBalance {
 		err2 := json.NewDecoder(resp.Body).Decode(b)
 		if err2 == nil {
 			if b.Result == "success" {
-				logger.Println("Get Balance Succeeded.")
+				logger.Info.Println("Get Balance Succeeded.")
 				return b
 			} else if b.ErrorCode == "131" {
 				time.Sleep(time.Duration(1) * time.Second)
 				return GetBalance()
 			} else {
-				logger.Println("[Get Balance Failed " + b.Result + "]")
+				logger.Warning.Println("[Get Balance Failed " + b.Result + "]")
 				return nil
 			}
 		} else {
-			logger.Println(resp.Body)
-			logger.Println(err2)
+			buf := new(bytes.Buffer)
+			buf.ReadFrom(resp.Body)
+			logger.Warning.Println(err2, buf.String())
 			return nil
 		}
 	} else {
-		logger.Println(err)
+		logger.Severe.Println(err)
 		return nil
 	}
 }
@@ -187,19 +187,21 @@ func (b *MyBalance) BuyCoin(coin string, price uint64, qty float64) string {
 		err2 := json.NewDecoder(resp.Body).Decode(lbs)
 		if err2 == nil {
 			if lbs.Result == "success" {
-				logger.Println("Request for a Limit Buy Succeeded.")
+				logger.Info.Println("Request for a Limit Buy Succeeded.")
 				return lbs.OrderId
 			} else if lbs.ErrorCode == "131" {
 				time.Sleep(time.Duration(1) * time.Second)
 				return b.BuyCoin(coin, price, qty)
 			}
-			logger.Println(lbs.ErrorCode)
+			logger.Warning.Println(lbs.ErrorCode)
 			return lbs.ErrorCode
 		}
-		logger.Println(err2)
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		logger.Warning.Println(err2, buf.String())
 		return ""
 	} else {
-		logger.Println(err)
+		logger.Severe.Println(err)
 		return ""
 	}
 }
@@ -227,18 +229,21 @@ func (b *MyBalance) SellCoin(coin string, price uint64, qty float64) string {
 		err2 := json.NewDecoder(resp.Body).Decode(lbs)
 		if err2 == nil {
 			if lbs.Result == "success" {
-				logger.Println("Request for a Limit Sell Succeeded.")
+				logger.Info.Println("Request for a Limit Sell Succeeded.")
 				return lbs.OrderId
 			} else if lbs.ErrorCode == "131" {
 				time.Sleep(time.Duration(1) * time.Second)
 				return b.SellCoin(coin, price, qty)
 			}
+			logger.Warning.Println(lbs.ErrorCode)
 			return lbs.ErrorCode
 		}
-		logger.Println(err2)
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		logger.Warning.Println(err2, buf.String())
 		return ""
 	} else {
-		logger.Println(err)
+		logger.Severe.Println(err)
 		return ""
 	}
 }
@@ -275,9 +280,9 @@ func (b *MyBalance) CancelOrder(id string, price uint64, qty float64, tradeType 
 		err2 := json.NewDecoder(resp.Body).Decode(c)
 		if err2 == nil {
 			if c.Result == "success" {
-				logger.Println("Cancel an Order Succeeded : " + id)
-				logger.Println("Qty : " + strconv.FormatFloat(qty, 'g', 1, 64))
-				logger.Println("Price : " + strconv.FormatUint(price, 10))
+				logger.Info.Println("Cancel an Order Succeeded : " + id)
+				logger.Info.Println("Qty : " + strconv.FormatFloat(qty, 'g', 1, 64))
+				logger.Info.Println("Price : " + strconv.FormatUint(price, 10))
 				return id
 			} else if c.ErrorCode == "131" {
 				time.Sleep(time.Duration(1) * time.Second)
@@ -285,10 +290,12 @@ func (b *MyBalance) CancelOrder(id string, price uint64, qty float64, tradeType 
 			}
 			return c.ErrorCode
 		}
-		logger.Println(err2)
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		logger.Warning.Println(err2, buf.String())
 		return ""
 	} else {
-		logger.Println(err)
+		logger.Severe.Println(err)
 		return ""
 	}
 }
@@ -314,19 +321,21 @@ func (b *MyBalance) GetOrderInfo(coin, orderID string) *OrderInfoRes {
 		err2 := json.NewDecoder(resp.Body).Decode(oir)
 		if err2 == nil {
 			if oir.Result == "success" {
-				logger.Println("Get Order Info Succeeded : " + orderID)
+				logger.Info.Println("Get Order Info Succeeded : " + orderID)
 				return oir
 			} else if oir.ErrorCode == "131" {
 				time.Sleep(time.Duration(1) * time.Second)
 				return b.GetOrderInfo(coin, orderID)
 			}
-			logger.Println(oir)
+			logger.Warning.Println(oir.Result)
 			return nil
 		}
-		logger.Println(err2)
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		logger.Warning.Println(err2, buf.String())
 		return nil
 	} else {
-		logger.Println(err)
+		logger.Warning.Println(err)
 		return nil
 	}
 }
@@ -350,19 +359,21 @@ func (b *MyBalance) GetLimitOrders(coin string) *MyLimitOrders {
 		err2 := json.NewDecoder(resp.Body).Decode(l)
 		if err2 == nil {
 			if l.Result == "success" {
-				logger.Println("Get LimitOrders Succeeded.")
+				logger.Info.Println("Get LimitOrders Succeeded.")
 				return l
 			} else if l.ErrorCode == "131" {
 				time.Sleep(time.Duration(1) * time.Second)
 				return b.GetLimitOrders(coin)
 			}
-			logger.Println(l.ErrorMessage)
+			logger.Warning.Println(l)
 			return nil
 		}
-		logger.Println(err2)
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		logger.Warning.Println(err2, buf.String())
 		return nil
 	} else {
-		logger.Println(err)
+		logger.Severe.Println(err)
 		return nil
 	}
 }
@@ -385,25 +396,27 @@ func GetCompleteOrder(coin string) *MyCompleteOrders {
 		err2 := json.NewDecoder(resp.Body).Decode(mco)
 		if err2 == nil {
 			if mco.Result == "success" {
-				logger.Println("Get Complete Order Succeeded.")
+				logger.Info.Println("Get Complete Order Succeeded.")
 				return mco
 			} else if mco.ErrorCode == "131" {
 				time.Sleep(time.Duration(1) * time.Second)
 				return GetCompleteOrder(coin)
 			}
-			logger.Println(mco.ErrorCode)
+			logger.Warning.Println(mco.ErrorCode)
 			return nil
 		}
-		logger.Println(err2)
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		logger.Warning.Println(err2, buf.String())
 		return nil
 	} else {
-		logger.Println(err)
+		logger.Severe.Println(err)
 		return nil
 	}
 }
 
 // setRequest transforms a golang data into a coinone request form.
-func (p *Parameter) setRequest(url string, logger *log.Logger) *http.Request {
+func (p *Parameter) setRequest(url string, logger *logger.Loggers) *http.Request {
 
 	b := new(bytes.Buffer)
 	json.NewEncoder(b).Encode(p)
@@ -421,7 +434,7 @@ func (p *Parameter) setRequest(url string, logger *log.Logger) *http.Request {
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		logger.Println(err)
+		logger.Severe.Println(err)
 	}
 	req.Header.Add("Content-type", "application/json")
 	req.Header.Add("X-COINONE-PAYLOAD", encodedPayload)

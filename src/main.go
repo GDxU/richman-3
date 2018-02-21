@@ -33,13 +33,13 @@ func main() {
 	logger.Now = time.Now().Format(time.RFC822)
 	logger.Coin = coin
 	mainLogger := logger.GetLogger("[Let's get Rich]")
-	mainLogger.Println("Let's Get Start!")
+	mainLogger.Info.Println("Let's Get Start!")
 
 	// TODO
 	// How It works?
 	defer func() {
 		if r := recover(); r != nil {
-			mainLogger.Println("ERROR", r)
+			mainLogger.Severe.Println(r)
 		}
 	}()
 
@@ -54,6 +54,11 @@ func main() {
 			myLimitOrders = myAccounts.GetLimitOrders(coin)
 			if myAccounts == nil || myLimitOrders == nil {
 				time.Sleep(time.Duration(1) * time.Second)
+				if myAccounts == nil {
+					mainLogger.Warning.Println("Get MyAccounts Failed.")
+				} else {
+					mainLogger.Warning.Println("Get Limit Orders Failed.")
+				}
 				continue
 			}
 			time.Sleep(time.Duration(10) * time.Second)
@@ -61,11 +66,34 @@ func main() {
 	}()
 
 	// get BTC Trade data every 10 minutes.
-	data.GetOneDayTradeData(coin, db)
+	godtCount := 0
+	for {
+		godt := data.GetOneDayTradeData(coin, db)
+		if godt == "" {
+			godtCount++
+			if godtCount > 5 {
+				panic("Get one day trade data failed. Somethings Wrong")
+			}
+			time.Sleep(time.Duration(2) * time.Second)
+			continue
+		}
+		godtCount = 0
+		break
+	}
+
+	gctdCount := 0
 	go func() {
 		for {
 			time.Sleep(time.Duration(10) * time.Minute)
-			data.GetCoinTradeData(coin, db)
+			gctd := data.GetCoinTradeData(coin, db)
+			if gctd == "" {
+				gctdCount++
+				if gctdCount > 5 {
+					panic("Get coin trade data failed.")
+				}
+				continue
+			}
+			gctdCount = 0
 		}
 	}()
 
@@ -86,12 +114,12 @@ func main() {
 			currentValue, _ = strconv.ParseUint(ro.Ask.Price, 10, 64)
 
 			if currentValue < (ctp[0].Bolband-5*uint64(ctp[0].Bolbandsd)/2) && tangent > 0 {
-				logger.Println("Current Value goes lower than BolBand Low Line! : " + strconv.Itoa(int(currentValue)) +
+				logger.Info.Println("Current Value goes lower than BolBand Low Line! : " + strconv.Itoa(int(currentValue)) +
 					" krw now, " + strconv.Itoa(int((ctp[0].Bolband - 5*uint64(ctp[0].Bolbandsd)/2))) + " krw LowerLine of BolBand")
 				weight := tangent * 100
 				available, err := strconv.ParseFloat(myAccounts.Krw.Avail, 64)
 				if err != nil {
-					logger.Println(err)
+					logger.Warning.Println(err)
 					continue
 				}
 				qty := available * weight / float64(currentValue)
@@ -101,7 +129,7 @@ func main() {
 					continue
 				}
 				if len(buyID) <= 5 {
-					logger.Println("ErrorCode : " + buyID)
+					logger.Warning.Println("ErrorCode : " + buyID)
 					continue
 				}
 
@@ -149,7 +177,7 @@ func main() {
 					}
 				}
 			} else {
-				logger.Println("Current Value is in Bollinger Band : " + strconv.Itoa(int(currentValue)) +
+				logger.Info.Println("Current Value is in Bollinger Band : " + strconv.Itoa(int(currentValue)) +
 					" krw now, " + strconv.Itoa(int((ctp[0].Bolband - 5*uint64(ctp[0].Bolbandsd)/2))) + " krw LowerLine of BolBand")
 			}
 		}
@@ -158,33 +186,45 @@ func main() {
 	// remove unresolved Buy/Sell request every 10 min
 	go func() {
 		logger := logger.GetLogger("[Remove Unresolved Buy/Sell Request]")
+	Loop1:
 		for {
 			time.Sleep(time.Duration(10) * time.Second)
-			logger.Println("Let's Delete unresolved Buy/Sell request.")
+			logger.Info.Println("Let's Delete unresolved Buy/Sell request.")
 			if len((*myLimitOrders).LimitOrders) == 0 {
-				logger.Println("No Order Exists")
+				logger.Info.Println("No Order Exists")
+				continue Loop1
 			}
+		Loop2:
 			for _, limitOrder := range myLimitOrders.LimitOrders {
 				currentTime := time.Now().Unix()
 				timestamp, err := strconv.ParseInt(limitOrder.Timestamp, 10, 64)
 				if err != nil {
-					logger.Println(err)
+					logger.Warning.Println(err)
+					continue Loop2
 				}
 				if timestamp < currentTime-3600 {
-					logger.Println("Cancelling a Order" + limitOrder.OrderId)
+					logger.Info.Println("Cancelling an Order" + limitOrder.OrderId)
 					price, _ := strconv.ParseUint(limitOrder.Price, 10, 64)
 					qty, _ := strconv.ParseFloat(limitOrder.Qty, 64)
+
+					coCount := 0
+				Loop3:
 					for {
 						cancelID := myAccounts.CancelOrder(limitOrder.OrderId, price, qty, limitOrder.Type)
 						if cancelID == "" {
 							time.Sleep(time.Duration(1) * time.Second)
-							continue
+							coCount++
+							if coCount > 5 {
+								logger.Severe.Println("Canceling Order Failed. " + limitOrder.OrderId)
+								continue Loop2
+							}
+							continue Loop3
 						} else {
-							break
+							break Loop3
 						}
 					}
 				} else {
-					logger.Println(limitOrder.OrderId + " will be deleted in " + strconv.Itoa(int(currentTime-timestamp)+3600))
+					logger.Info.Println(limitOrder.OrderId + " will be deleted in " + strconv.Itoa(int(currentTime-timestamp)+3600))
 				}
 			}
 		}
@@ -204,6 +244,7 @@ func main() {
 			}
 		}
 		noco := len(mco.CompleteOrders)
+
 		for {
 			time.Sleep(time.Duration(10) * time.Second)
 			mco = account.GetCompleteOrder(coin)
@@ -214,11 +255,11 @@ func main() {
 			if len(mco.CompleteOrders) > noco {
 				for i := 0; i < len(mco.CompleteOrders)-noco; i++ {
 					if mco.CompleteOrders[i].Type == "ask" {
-						logger.Println("Sell " + coin + " Succeeded.")
+						logger.Info.Println("Sell " + coin + " Succeeded.")
 					} else {
-						logger.Println("Buy " + coin + " Succeeded.")
+						logger.Info.Println("Buy " + coin + " Succeeded.")
 					}
-					logger.Println(mco.CompleteOrders[i].Price + " KRW, " + mco.CompleteOrders[i].Qty + coin)
+					logger.Info.Println(mco.CompleteOrders[i].Price + " KRW, " + mco.CompleteOrders[i].Qty + coin)
 				}
 			}
 			noco = len(mco.CompleteOrders)
