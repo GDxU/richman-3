@@ -175,10 +175,19 @@ func main() {
 		}
 	}()
 
-	// Logging Complete Trade
 	var mco *account.MyCompleteOrders
+	// Logging Complete Trade
 	go func() {
 		logger := logger.GetLogger("[Complete Trade]")
+		for {
+			mco = account.GetCompleteOrder(coin)
+			if mco == nil {
+				time.Sleep(time.Duration(1) * time.Second)
+				continue
+			} else {
+				break
+			}
+		}
 		noco := len(mco.CompleteOrders)
 		for {
 			time.Sleep(time.Duration(10) * time.Second)
