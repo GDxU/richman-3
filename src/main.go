@@ -70,6 +70,7 @@ func main() {
 	}()
 
 	//Logic A
+	var sellValue, currentValue uint64
 	go func() {
 		logger := logger.GetLogger("[Logic A]")
 		for {
@@ -82,7 +83,7 @@ func main() {
 				time.Sleep(time.Duration(1) * time.Second)
 				continue
 			}
-			currentValue, _ := strconv.ParseUint(ro.Ask.Price, 10, 64)
+			currentValue, _ = strconv.ParseUint(ro.Ask.Price, 10, 64)
 
 			if currentValue < (ctp[0].Bolband-5*uint64(ctp[0].Bolbandsd)/2) && tangent > 0 {
 				logger.Println("Current Value goes lower than BolBand Low Line! : " + strconv.Itoa(int(currentValue)) +
@@ -103,16 +104,10 @@ func main() {
 					logger.Println("ErrorCode : " + buyID)
 					continue
 				}
-				time.Sleep(time.Duration(15) * time.Minute)
-				var i int
-				for _, limitOrder := range myLimitOrders.LimitOrders {
-					if limitOrder.OrderId == buyID {
-						myAccounts.CancelOrder(buyID, currentValue, qty, "bid")
-					} else {
-						i++
-					}
-				}
-				if i == len(myLimitOrders.LimitOrders) {
+
+				for {
+					temp1 := 0
+					time.Sleep(time.Duration(15) * time.Minute)
 					for {
 						ro = data.GetRecentOrder(coin)
 						if ro == nil {
@@ -122,9 +117,29 @@ func main() {
 							break
 						}
 					}
-					currentValue, _ := strconv.ParseUint(ro.Bid.Price, 10, 64)
+					sellValue, _ = strconv.ParseUint(ro.Bid.Price, 10, 64)
+					if sellValue < currentValue {
+						temp1++
+						if temp1 < 5 {
+							continue
+						} else {
+							break
+						}
+					}
+				}
+
+				var i int
+				for _, limitOrder := range myLimitOrders.LimitOrders {
+					if limitOrder.OrderId == buyID {
+						myAccounts.CancelOrder(buyID, currentValue, qty, "bid")
+					} else {
+						i++
+					}
+				}
+				if i == len(myLimitOrders.LimitOrders) {
+
 					for {
-						sellID := myAccounts.SellCoin(coin, currentValue, qty)
+						sellID := myAccounts.SellCoin(coin, sellValue, qty)
 						if sellID == "" {
 							time.Sleep(time.Duration(1) * time.Second)
 							continue
