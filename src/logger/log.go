@@ -8,9 +8,13 @@ import (
 )
 
 // Now is the time when the process executed.
-var Now string
-var Coin string
+// Coin is the Coin name
+var (
+	Now  string
+	Coin string
+)
 
+// Loggers is a set of loggers.
 type Loggers struct {
 	Info    *log.Logger
 	Warning *log.Logger
