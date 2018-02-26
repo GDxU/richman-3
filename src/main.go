@@ -28,16 +28,16 @@ var (
 	db         *sql.DB
 	errrrr     string
 	mainLogger *logger.Loggers
+	errchan    chan interface{}
 )
 
 func main() {
 	defer func() {
 		if r := recover(); r != nil {
 			mainLogger.Severe.Println(r)
-			mainLogger.Severe.Println("=> unexpected Error")
+			mainLogger.Severe.Println("=> Unexpected Error.")
 		}
 	}()
-
 	// Arguments
 	args := os.Args[1:]
 	reader := bufio.NewReader(os.Stdin)
@@ -56,28 +56,39 @@ func main() {
 	mainLogger.Info.Println("Let's Get Start!")
 
 	// Base Setting
+	errchan = make(chan interface{})
 	lock = new(sync.RWMutex)
 	db = dbfunc.GetDbConn(coin)
 	mco = account.GetCompleteOrder(coin)
 	mlo = account.GetLimitOrders(coin)
 	ma = account.GetBalance()
-	noco = len(mco.CompleteOrders)
 	if mco == nil {
 		errrrr = "Get Complete Order Failed."
-		goto RETURN
 	} else if mlo == nil {
 		errrrr = "Get Limit Order Failed."
-		goto RETURN
 	} else if ma == nil {
 		errrrr = "Get Account Balance Failed."
-		goto RETURN
 	} else if db == nil {
 		errrrr = "Get DB Connection Failed."
-		goto RETURN
+	}
+	// get BTC Trade data during past 24 hours
+	godt := data.GetOneDayTradeData(coin, db)
+	if godt == "" {
+		errrrr = "Get one day trade data failed. Somethings Wrong"
+	}
+	if errrrr != "" {
+		panic(errrrr)
 	}
 
+	////////////////////////////////////////////////////////////////
 	// get Account Info every 10 seconds
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errchan <- r
+			}
+		}()
+		noco = len(mco.CompleteOrders)
 		for {
 			time.Sleep(time.Duration(10) * time.Second)
 			maTemp := account.GetBalance()
@@ -97,9 +108,9 @@ func main() {
 				continue
 			}
 			lock.Lock()
-			ma = maTemp
-			mlo = mloTemp
-			mco = mcoTemp
+			*ma = *maTemp
+			*mlo = *mloTemp
+			*mco = *mcoTemp
 			lock.Unlock()
 
 			if noco < len(mco.CompleteOrders) {
@@ -109,28 +120,37 @@ func main() {
 		}
 	}()
 
-	// get BTC Trade data during past 24 hours
-	for godtCount := 0; godtCount < 5; godtCount++ {
-		godt := data.GetOneDayTradeData(coin, db)
-		if godt == "" {
-			if godtCount == 4 {
-				errrrr = "Get one day trade data failed. Somethings Wrong"
-				goto RETURN
+	// get BTC Trade data every 10 minutes && logic B
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errchan <- r
 			}
-			time.Sleep(time.Duration(2) * time.Second)
-			continue
+		}()
+		for {
+			time.Sleep(time.Duration(10) * time.Minute)
+			getTradeData()
+			logics.LogicB(ma, mlo, mco, db, coin, lock)
 		}
-		break
-	}
-
-	// get BTC Trade data every 10 minutes.
-	go getTradeData(10)
+	}()
 
 	// remove unresolved Buy/Sell request every 60 sec
-	go removeUnresolvedOrders(60)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errchan <- r
+			}
+		}()
+		removeUnresolvedOrders(60)
+	}()
 
 	//Logic A
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errchan <- r
+			}
+		}()
 		for {
 			time.Sleep(time.Duration(5) * time.Second)
 			logics.LogicA(ma, mlo, mco, db, coin, lock)
@@ -138,13 +158,7 @@ func main() {
 	}()
 
 	// how to maintain the program not terminated?
-	for {
-		fmt.Scanln()
-	}
-
-	// This is Err
-RETURN:
-	mainLogger.Severe.Println(errrrr)
+	mainLogger.Severe.Println(<-errchan)
 }
 
 func removeUnresolvedOrders(duration int) {
@@ -198,21 +212,18 @@ func logCompletedTrades(noco int) {
 	}
 }
 
-func getTradeData(duration int) {
-	var gctd string
-	gctdCount := 0
-	for {
-		time.Sleep(time.Duration(duration) * time.Minute)
-		gctd = data.GetCoinTradeData(coin, db)
-		if gctd == "" {
-			gctdCount++
-			if gctdCount > 5 {
-				mainLogger.Severe.Println("Get coin trade data failed.")
-				time.Sleep(time.Duration(60) * time.Minute)
-				gctdCount--
-			}
-			continue
+func getTradeData() {
+	count := 0
+retry:
+	gctd := data.GetCoinTradeData(coin, db)
+	if gctd == "" {
+		mainLogger.Warning.Println("Get coin trade data failed.")
+		time.Sleep(time.Duration(30) * time.Second)
+		count++
+		if count == 5 {
+			panic("Cannot get Coin Trade Data.")
 		}
-		gctdCount = 0
+		goto retry
 	}
+	return
 }

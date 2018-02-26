@@ -147,7 +147,7 @@ func GetBalance() *MyBalance {
 				time.Sleep(time.Duration(1) * time.Second)
 				return GetBalance()
 			} else {
-				logger.Warning.Println("[Get Balance Failed " + b.Result + "]")
+				logger.Warning.Println(b)
 				return nil
 			}
 		} else {
@@ -405,7 +405,7 @@ func GetCompleteOrder(coin string) *MyCompleteOrders {
 				time.Sleep(time.Duration(1) * time.Second)
 				return GetCompleteOrder(coin)
 			}
-			logger.Warning.Println(mco.ErrorCode)
+			logger.Warning.Println(mco)
 			return nil
 		}
 		buf := new(bytes.Buffer)
