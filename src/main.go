@@ -10,6 +10,7 @@ import (
 	"logger"
 	"logics"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -159,6 +160,7 @@ func main() {
 
 	// how to maintain the program not terminated?
 	mainLogger.Severe.Println(<-errchan)
+	mainLogger.Severe.Println(string(debug.Stack()[:]))
 }
 
 func removeUnresolvedOrders(duration int) {

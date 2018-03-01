@@ -156,7 +156,6 @@ func GetRecentOrder(coin string) *RecentOrderBook {
 		recentOrder.Timestamp = orderBook.Timestamp
 		recentOrder.ErrorCode = orderBook.ErrorCode
 
-		logger.Info.Println("Get OrderBook Succeeded.")
 		return recentOrder
 	} else if orderBook.ErrorCode == "133" {
 		time.Sleep(time.Duration(1) * time.Second)
